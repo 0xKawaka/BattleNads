@@ -1,79 +1,91 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0 <0.9.0;
 
-// Useful for debugging. Remove when deploying to a live network.
-import "forge-std/console.sol";
-
-// Use openzeppelin to inherit battle-tested implementations (ERC20, ERC721, etc)
-// import "@openzeppelin/contracts/access/Ownable.sol";
-
-/**
- * A smart contract that allows changing a state variable of the contract and tracking the changes
- * It also allows the owner to withdraw the Ether in the contract
- * @author BuidlGuidl
- */
 contract YourContract {
-    // State Variables
-    address public immutable owner;
-    string public greeting = "Building Unstoppable Apps!!!";
-    bool public premium = false;
-    uint256 public totalCounter = 0;
-    mapping(address => uint256) public userGreetingCounter;
+    // Maximum health for each monster set to 100000.
+    uint256 public constant MAX_HEALTH = 100000;
 
-    // Events: a way to emit log statements from smart contract that can be listened to by external parties
-    event GreetingChange(address indexed greetingSetter, string newGreeting, bool premium, uint256 value);
+    // Health for team 1 and team 2 monsters.
+    uint256 public team1Health;
+    uint256 public team2Health;
 
-    // Constructor: Called once on contract deployment
-    // Check packages/foundry/deploy/Deploy.s.sol
-    constructor(address _owner) {
-        owner = _owner;
-    }
+    // Indicates if the battle is active.
+    bool public battleActive;
 
-    // Modifier: used to define a set of rules that must be met before or after a function is executed
-    // Check the withdraw() function
-    modifier isOwner() {
-        // msg.sender: predefined variable that represents address of the account that called the current function
-        require(msg.sender == owner, "Not the Owner");
+    // Mapping to track which team a player has joined.
+    mapping(address => uint8) public playerTeam;
+
+    // Owner of the contract.
+    address public owner;
+
+    // Events for logging significant actions.
+    event JoinedTeam(address indexed player, uint8 team);
+    event Attack(address indexed attacker, uint8 attackerTeam, uint256 enemyRemainingHealth);
+    event BattleEnded(uint8 winningTeam);
+    event BattleRestarted();
+
+    // Modifier to restrict functions to only the owner.
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can perform this action.");
         _;
     }
 
-    /**
-     * Function that allows anyone to change the state variable "greeting" of the contract and increase the counters
-     *
-     * @param _newGreeting (string memory) - new greeting to save on the contract
-     */
-    function setGreeting(string memory _newGreeting) public payable {
-        // Print data to the anvil chain console. Remove when deploying to a live network.
+    /// @notice Constructor sets the contract deployer as the owner and initializes the battle.
+    constructor(address _owner) {
+        owner = _owner;
+        _restartBattle();
+    }
 
-        console.logString("Setting new greeting");
-        console.logString(_newGreeting);
+    /// @notice Allows a user to join a team (either 1 or 2).
+    /// @param team The team number the user wants to join (must be 1 or 2).
+    function joinTeam(uint8 team) external {
+        require(team == 1 || team == 2, "Invalid team. Choose 1 or 2.");
+        require(playerTeam[msg.sender] == 0, "You have already joined a team.");
+        playerTeam[msg.sender] = team;
+        emit JoinedTeam(msg.sender, team);
+    }
 
-        greeting = _newGreeting;
-        totalCounter += 1;
-        userGreetingCounter[msg.sender] += 1;
+    /// @notice Allows a player (who has joined a team) to attack the opposing monster.
+    /// The attack deducts 1 health from the enemy monster.
+    /// If the enemy monster’s health reaches 0, the battle ends.
+    function attack() external {
+        require(battleActive, "Battle has ended.");
+        uint8 team = playerTeam[msg.sender];
+        require(team == 1 || team == 2, "You must join a team before attacking.");
 
-        // msg.value: built-in global variable that represents the amount of ether sent with the transaction
-        if (msg.value > 0) {
-            premium = true;
-        } else {
-            premium = false;
+        if (team == 1) {
+            // Attacker is on team 1 so attack team 2's monster.
+            require(team2Health > 0, "Enemy monster already defeated.");
+            team2Health -= 1;
+            emit Attack(msg.sender, team, team2Health);
+            if (team2Health == 0) {
+                battleActive = false;
+                emit BattleEnded(1); // Team 1 wins.
+            }
+        } else if (team == 2) {
+            // Attacker is on team 2 so attack team 1's monster.
+            require(team1Health > 0, "Enemy monster already defeated.");
+            team1Health -= 1;
+            emit Attack(msg.sender, team, team1Health);
+            if (team1Health == 0) {
+                battleActive = false;
+                emit BattleEnded(2); // Team 2 wins.
+            }
         }
-
-        // emit: keyword used to trigger an event
-        emit GreetingChange(msg.sender, _newGreeting, msg.value > 0, msg.value);
     }
 
-    /**
-     * Function that allows the owner to withdraw all the Ether in the contract
-     * The function can only be called by the owner of the contract as defined by the isOwner modifier
-     */
-    function withdraw() public isOwner {
-        (bool success,) = owner.call{ value: address(this).balance }("");
-        require(success, "Failed to send Ether");
+    /// @notice Restarts the battle by resetting both monsters' health.
+    /// Can only be called by the owner and only when the battle has ended.
+    function restartBattle() external onlyOwner {
+        require(!battleActive, "Battle is still active.");
+        _restartBattle();
+        emit BattleRestarted();
     }
 
-    /**
-     * Function that allows the contract to receive ETH
-     */
-    receive() external payable { }
+    /// @dev Internal function to reset the battle state.
+    function _restartBattle() internal {
+        team1Health = MAX_HEALTH;
+        team2Health = MAX_HEALTH;
+        battleActive = true;
+    }
 }

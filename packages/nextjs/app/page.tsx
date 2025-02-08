@@ -1,72 +1,292 @@
 "use client";
 
-import Link from "next/link";
+import React, { useState, useRef } from "react";
 import type { NextPage } from "next";
 import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { Address } from "~~/components/scaffold-eth";
+import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import team1 from './assets/team1.png';
+import team2 from './assets/team2.png';
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
 
+  const { data: team } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "playerTeam",
+    args: [connectedAddress],
+  });
+
+  const { data: team1Health } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "team1Health",
+  });
+
+  const { data: team2Health } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "team2Health",
+  });
+
+  const { writeContractAsync } = useScaffoldWriteContract({ contractName: "YourContract" });
+
+  // State to trigger the attack animation for the attacking team
+  const [attackingAnimation, setAttackingAnimation] = useState(false);
+  // State to hold damage animations; each new attack pushes a new entry with a unique id and team
+  const [damageAnimations, setDamageAnimations] = useState<Array<{ team: number; id: string }>>([]);
+  const damageAnimationIdRef = useRef(0);
+
+  // New state to trigger a shake animation for the team taking damage
+  const [damagedTeam, setDamagedTeam] = useState<number | null>(null);
+
   return (
-    <>
-      <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col sm:flex-row">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} />
-          </div>
+    <div className="flex items-center justify-center bg-base-100 h-[80vh]">
+      {connectedAddress && (
+        <div className="">
+          {(!team || team === 0) ? (
+            <>
+              <h2 className="text-3xl mb-6 text-center">Pick Your Team</h2>
+              <div className="flex gap-6 justify-center">
+                <div
+                  className="cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      await writeContractAsync({
+                        functionName: "joinTeam",
+                        args: [1],
+                      });
+                    } catch (error) {
+                      console.error("Error joining Team 1:", error);
+                    }
+                  }}
+                >
+                  <img
+                    src={team1.src}
+                    alt="Team 1"
+                    className="w-48 h-48 transition-transform duration-200 transform hover:scale-110"
+                  />
+                </div>
+                <div
+                  className="cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      await writeContractAsync({
+                        functionName: "joinTeam",
+                        args: [2],
+                      });
+                    } catch (error) {
+                      console.error("Error joining Team 2:", error);
+                    }
+                  }}
+                >
+                  <img
+                    src={team2.src}
+                    alt="Team 2"
+                    className="w-48 h-48 transition-transform duration-200 transform hover:scale-110"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Container holding both teams images and health values */}
+              <div className="flex justify-center gap-10 mb-6">
+                <div className="flex flex-col items-center relative">
+                  <img
+                    src={team1.src}
+                    alt="Team 1"
+                    className={`w-48 h-48
+                      ${team === 1 && attackingAnimation ? "attack-animation-right" : ""}
+                      ${damagedTeam === 1 ? "damage-shake" : ""}
+                    `}
+                  />
+                  <span className="mt-3 text-xl">Health: {String(team1Health)}</span>
+                  {damageAnimations
+                    .filter((anim) => anim.team === 1)
+                    .map((anim) => (
+                      <div key={anim.id} className="damage-animation damage-left text-3xl">-1</div>
+                    ))}
+                </div>
+                <div className="flex flex-col items-center relative">
+                  <img
+                    src={team2.src}
+                    alt="Team 2"
+                    className={`w-48 h-48
+                      ${team === 2 && attackingAnimation ? "attack-animation-left" : ""}
+                      ${damagedTeam === 2 ? "damage-shake" : ""}
+                    `}
+                  />
+                  <span className="mt-3 text-xl">Health: {String(team2Health)}</span>
+                  {damageAnimations
+                    .filter((anim) => anim.team === 2)
+                    .map((anim) => (
+                      <div key={anim.id} className="damage-animation damage-right text-3xl">-1</div>
+                    ))}
+                </div>
+              </div>
+              <div className="flex justify-center">
+                <button
+                  className="btn btn-attack"
+                  onClick={async () => {
+                    try {
+                      await writeContractAsync({ functionName: "attack" });
+                      if (team === 1) {
+                        // Team 1 attacks Team 2.
+                        setAttackingAnimation(true);
+                        setTimeout(() => setAttackingAnimation(false), 500);
 
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              YourContract.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
-        </div>
+                        const newId = "damage-" + damageAnimationIdRef.current++;
+                        setDamageAnimations((prev) => [...prev, { team: 2, id: newId }]);
+                        // Trigger shake on the damaged enemy team
+                        setDamagedTeam(2);
+                        setTimeout(() => setDamagedTeam(null), 500);
 
-        <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-          </div>
+                        setTimeout(() => {
+                          setDamageAnimations((prev) =>
+                            prev.filter((anim) => anim.id !== newId)
+                          );
+                        }, 1000);
+                      } else if (team === 2) {
+                        // Team 2 attacks Team 1.
+                        setAttackingAnimation(true);
+                        setTimeout(() => setAttackingAnimation(false), 500);
+
+                        const newId = "damage-" + damageAnimationIdRef.current++;
+                        setDamageAnimations((prev) => [...prev, { team: 1, id: newId }]);
+                        // Trigger shake on the damaged enemy team
+                        setDamagedTeam(1);
+                        setTimeout(() => setDamagedTeam(null), 500);
+
+                        setTimeout(() => {
+                          setDamageAnimations((prev) =>
+                            prev.filter((anim) => anim.id !== newId)
+                          );
+                        }, 1000);
+                      }
+                    } catch (error) {
+                      console.error("Error attacking:", error);
+                    }
+                  }}
+                >
+                  Attack
+                </button>
+              </div>
+            </>
+          )}
         </div>
-      </div>
-    </>
+      )}
+
+      {/* CSS animations for attack, damage indicators, and damage shake */}
+      <style jsx>{`
+        /* Attack animations: move toward the enemy and then return */
+        @keyframes attack-right {
+          0% {
+            transform: translateX(0);
+          }
+          50% {
+            transform: translateX(30px);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+        .attack-animation-right {
+          animation: attack-right 0.5s ease-in-out;
+        }
+        
+        @keyframes attack-left {
+          0% {
+            transform: translateX(0);
+          }
+          50% {
+            transform: translateX(-30px);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+        .attack-animation-left {
+          animation: attack-left 0.5s ease-in-out;
+        }
+        
+        /* Damage indicator animations:
+           - For Team 1: slide left (since an attack from Team 2 comes from the right)
+           - For Team 2: slide right (attack from Team 1 comes from the left)
+        */
+        @keyframes damage-left {
+          0% {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+          100% {
+            opacity: 0.2;
+            transform: translate(-200%, -50%);
+          }
+        }
+        .damage-left {
+          animation: damage-left 1s ease-out forwards;
+        }
+        
+        @keyframes damage-right {
+          0% {
+            opacity: 1;
+            transform: translate(50%, 0);
+          }
+          100% {
+            opacity: 0.2;
+            transform: translate(200%, -50%);
+          }
+        }
+        .damage-right {
+          animation: damage-right 1s ease-out forwards;
+        }
+        
+        .damage-animation {
+          position: absolute;
+          top: 10%;
+          left: 50%;
+          font-size: 3rem;
+          color: red;
+        }
+
+        /* Damaged shake animation for the team taking damage */
+        @keyframes shake {
+          0% {
+            transform: translateX(0);
+          }
+          25% {
+            transform: translateX(-5%);
+          }
+          50% {
+            transform: translateX(5%);
+          }
+          75% {
+            transform: translateX(-5%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+        .damage-shake {
+          animation: shake 0.5s ease-in-out;
+        }
+
+        /* --- Updated styles for the Attack button --- */
+        .btn-attack {
+          background-color: rgba(131, 110, 249, 1);
+          border: none;
+          color: white;
+          padding: 1rem 2rem;
+          border-radius: 0.5rem;
+          font-size: 1.25rem;
+          transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .btn-attack:hover {
+          background-color: #8b69ed;
+          box-shadow: 0 4px 10px rgba(131, 110, 249, 0.5);
+        }
+      `}</style>
+    </div>
   );
 };
 
 export default Home;
+
