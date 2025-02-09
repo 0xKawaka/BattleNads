@@ -26,6 +26,12 @@ const Home: NextPage = () => {
     functionName: "team2Health",
   });
 
+  const { data: maxHealth } = useScaffoldReadContract({
+    contractName: "YourContract",
+    functionName: "MAX_HEALTH",
+  });
+  
+
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "YourContract" });
 
   // State to trigger the attack animation for the attacking team
@@ -37,6 +43,7 @@ const Home: NextPage = () => {
   // New state to trigger a shake animation for the team taking damage
   const [damagedTeam, setDamagedTeam] = useState<number | null>(null);
 
+
   return (
     <div className="flex items-center justify-center bg-base-100 h-[80vh]">
       {connectedAddress && (
@@ -44,7 +51,7 @@ const Home: NextPage = () => {
           {(!team || team === 0) ? (
             <>
               <h2 className="text-3xl mb-6 text-center">Pick Your Team</h2>
-              <div className="flex gap-6 justify-center">
+              <div className="flex gap-3 sm:gap-12 justify-center">
                 <div
                   className="cursor-pointer"
                   onClick={async () => {
@@ -61,7 +68,7 @@ const Home: NextPage = () => {
                   <img
                     src={team1.src}
                     alt="Team 1"
-                    className="w-48 h-48 transition-transform duration-200 transform hover:scale-110"
+                    className="w-36 h-36 sm:w-64 sm:h-64 transition-transform duration-200 transform hover:scale-110"
                   />
                 </div>
                 <div
@@ -80,45 +87,57 @@ const Home: NextPage = () => {
                   <img
                     src={team2.src}
                     alt="Team 2"
-                    className="w-48 h-48 transition-transform duration-200 transform hover:scale-110"
+                    className="w-36 h-36 sm:w-64 sm:h-64 transition-transform duration-200 transform hover:scale-110"
                   />
                 </div>
               </div>
             </>
           ) : (
             <>
-              {/* Container holding both teams images and health values */}
-              <div className="flex justify-center gap-10 mb-6">
+              {/* Container holding both teams images and health bars */}
+              <div className="flex justify-center gap-3 sm:gap-12 mb-6">
                 <div className="flex flex-col items-center relative">
                   <img
                     src={team1.src}
                     alt="Team 1"
-                    className={`w-48 h-48
-                      ${team === 1 && attackingAnimation ? "attack-animation-right" : ""}
-                      ${damagedTeam === 1 ? "damage-shake" : ""}
-                    `}
+                    className={`w-36 h-36 sm:w-64 sm:h-64 ${team === 1 && attackingAnimation ? "attack-animation-right" : ""} ${damagedTeam === 1 ? "damage-shake" : ""}`}
                   />
-                  <span className="mt-3 text-xl">Health: {String(team1Health)}</span>
+                  {/* Health bar for Team 1 */}
+                  <div className="health-bar">
+                    <div
+                      className="health-bar-fill"
+                      style={{ width: `${(Number(team1Health) / Number(maxHealth)) * 100}%` }}
+                    ></div>
+                    <div className="health-bar-text">
+                      {String(team1Health)}/{Number(maxHealth)}
+                    </div>
+                  </div>
                   {damageAnimations
                     .filter((anim) => anim.team === 1)
                     .map((anim) => (
-                      <div key={anim.id} className="damage-animation damage-left text-3xl">-1</div>
+                      <div key={anim.id} className="damage-animation damage-left text-4xl sm:text-6xl">-1</div>
                     ))}
                 </div>
                 <div className="flex flex-col items-center relative">
                   <img
                     src={team2.src}
                     alt="Team 2"
-                    className={`w-48 h-48
-                      ${team === 2 && attackingAnimation ? "attack-animation-left" : ""}
-                      ${damagedTeam === 2 ? "damage-shake" : ""}
-                    `}
+                    className={`w-36 h-36 sm:w-64 sm:h-64 ${team === 2 && attackingAnimation ? "attack-animation-left" : ""} ${damagedTeam === 2 ? "damage-shake" : ""}`}
                   />
-                  <span className="mt-3 text-xl">Health: {String(team2Health)}</span>
+                  {/* Health bar for Team 2 */}
+                  <div className="health-bar">
+                    <div
+                      className="health-bar-fill"
+                      style={{ width: `${(Number(team2Health) / Number(maxHealth)) * 100}%` }}
+                    ></div>
+                    <div className="health-bar-text">
+                      {String(team2Health)}/{Number(maxHealth)}
+                    </div>
+                  </div>
                   {damageAnimations
                     .filter((anim) => anim.team === 2)
                     .map((anim) => (
-                      <div key={anim.id} className="damage-animation damage-right text-3xl">-1</div>
+                      <div key={anim.id} className="damage-animation damage-right text-4xl sm:text-6xl">-1</div>
                     ))}
                 </div>
               </div>
@@ -174,7 +193,7 @@ const Home: NextPage = () => {
         </div>
       )}
 
-      {/* CSS animations for attack, damage indicators, and damage shake */}
+      {/* CSS animations for attack, damage indicators, damage shake and health bars */}
       <style jsx>{`
         /* Attack animations: move toward the enemy and then return */
         @keyframes attack-right {
@@ -243,7 +262,6 @@ const Home: NextPage = () => {
           position: absolute;
           top: 10%;
           left: 50%;
-          font-size: 3rem;
           color: red;
         }
 
@@ -282,6 +300,47 @@ const Home: NextPage = () => {
         .btn-attack:hover {
           background-color: #8b69ed;
           box-shadow: 0 4px 10px rgba(131, 110, 249, 0.5);
+        }
+
+        /* Health bar styles */
+        .health-bar {
+          width: 150px;
+          height: 30px;
+          border: 2px solid rgba(131, 110, 249, 1);
+          border-radius: 5px;
+          position: relative;
+          background-color: #E5E7EB;
+          margin-top: 10px;
+        }
+        .health-bar-fill {
+          height: 100%;
+          background-color: rgba(131, 110, 249, 1);
+          border-radius: 5px;
+          transition: width 0.5s ease-in-out;
+        }
+        .health-bar-text {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          color: #000;
+        }
+
+        /* Mobile scaling for healthbar and attack button */
+        @media (max-width: 640px) {
+          .health-bar {
+            width: 120px;
+            height: 25px;
+          }
+          .btn-attack {
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+          }
         }
       `}</style>
     </div>
