@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 contract YourContract {
     // Maximum health for each monster set to 100000.
-    uint256 public constant MAX_HEALTH = 100;
+    uint256 public constant MAX_HEALTH = 1000;
 
     // Health for team 1 and team 2 monsters.
     uint256 public team1Health;

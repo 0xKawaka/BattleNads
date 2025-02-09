@@ -10,18 +10,18 @@ import team2 from './assets/team2.png';
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
 
-  const { data: team } = useScaffoldReadContract({
+  const { data: team, refetch: refetchTeam } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "playerTeam",
     args: [connectedAddress],
   });
 
-  const { data: team1Health } = useScaffoldReadContract({
+  const { data: team1Health, refetch: refetchTeam1Health } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "team1Health",
   });
 
-  const { data: team2Health } = useScaffoldReadContract({
+  const { data: team2Health, refetch: refetchTeam2Health } = useScaffoldReadContract({
     contractName: "YourContract",
     functionName: "team2Health",
   });
@@ -31,8 +31,56 @@ const Home: NextPage = () => {
     functionName: "MAX_HEALTH",
   });
   
-
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "YourContract" });
+
+  async function joinTeam(team: number) {
+    await writeContractAsync({ functionName: "joinTeam", args: [team] }, { onBlockConfirmation: onJoinTeamConfirmation });
+  }
+
+  async function onJoinTeamConfirmation() {
+    await refetchTeam();
+  }
+
+  async function attack(teamAttacking: number) {
+    await writeContractAsync({ functionName: "attack" }, { onBlockConfirmation: (teamAttacking === 1 ? onTeam1AttackConfirmation : onTeam2AttackConfirmation) });
+  }
+
+  function onTeam1AttackConfirmation() {
+    setAttackingAnimation(true);
+    setTimeout(() => setAttackingAnimation(false), 500);
+
+    const newId = "damage-" + damageAnimationIdRef.current++;
+    setDamageAnimations((prev) => [...prev, { team: 2, id: newId }]);
+    // Trigger shake on the damaged enemy team
+    setDamagedTeam(2);
+    refetchTeam2Health();
+    setTimeout(() => setDamagedTeam(null), 500);
+
+    setTimeout(() => {
+      setDamageAnimations((prev) =>
+        prev.filter((anim) => anim.id !== newId)
+      );
+    }, 1000);
+  }
+
+  function onTeam2AttackConfirmation() {
+    setAttackingAnimation(true);
+    setTimeout(() => setAttackingAnimation(false), 500);
+
+    const newId = "damage-" + damageAnimationIdRef.current++;
+    setDamageAnimations((prev) => [...prev, { team: 1, id: newId }]);
+    // Trigger shake on the damaged enemy team
+    setDamagedTeam(1);
+    refetchTeam1Health();
+    setTimeout(() => setDamagedTeam(null), 500);
+
+    setTimeout(() => {
+      setDamageAnimations((prev) =>
+        prev.filter((anim) => anim.id !== newId)
+      );
+    }, 1000);
+
+  }
 
   // State to trigger the attack animation for the attacking team
   const [attackingAnimation, setAttackingAnimation] = useState(false);
@@ -45,7 +93,7 @@ const Home: NextPage = () => {
 
 
   return (
-    <div className="flex items-center justify-center bg-base-100 h-[80vh]">
+    <div className="flex items-center justify-center h-[80vh]">
       {connectedAddress && (
         <div className="">
           {(!team || team === 0) ? (
@@ -56,10 +104,7 @@ const Home: NextPage = () => {
                   className="cursor-pointer"
                   onClick={async () => {
                     try {
-                      await writeContractAsync({
-                        functionName: "joinTeam",
-                        args: [1],
-                      });
+                      await joinTeam(1);
                     } catch (error) {
                       console.error("Error joining Team 1:", error);
                     }
@@ -75,10 +120,7 @@ const Home: NextPage = () => {
                   className="cursor-pointer"
                   onClick={async () => {
                     try {
-                      await writeContractAsync({
-                        functionName: "joinTeam",
-                        args: [2],
-                      });
+                      await joinTeam(2);
                     } catch (error) {
                       console.error("Error joining Team 2:", error);
                     }
@@ -146,39 +188,11 @@ const Home: NextPage = () => {
                   className="btn btn-attack"
                   onClick={async () => {
                     try {
-                      await writeContractAsync({ functionName: "attack" });
+                      
                       if (team === 1) {
-                        // Team 1 attacks Team 2.
-                        setAttackingAnimation(true);
-                        setTimeout(() => setAttackingAnimation(false), 500);
-
-                        const newId = "damage-" + damageAnimationIdRef.current++;
-                        setDamageAnimations((prev) => [...prev, { team: 2, id: newId }]);
-                        // Trigger shake on the damaged enemy team
-                        setDamagedTeam(2);
-                        setTimeout(() => setDamagedTeam(null), 500);
-
-                        setTimeout(() => {
-                          setDamageAnimations((prev) =>
-                            prev.filter((anim) => anim.id !== newId)
-                          );
-                        }, 1000);
+                        await attack(1);
                       } else if (team === 2) {
-                        // Team 2 attacks Team 1.
-                        setAttackingAnimation(true);
-                        setTimeout(() => setAttackingAnimation(false), 500);
-
-                        const newId = "damage-" + damageAnimationIdRef.current++;
-                        setDamageAnimations((prev) => [...prev, { team: 1, id: newId }]);
-                        // Trigger shake on the damaged enemy team
-                        setDamagedTeam(1);
-                        setTimeout(() => setDamagedTeam(null), 500);
-
-                        setTimeout(() => {
-                          setDamageAnimations((prev) =>
-                            prev.filter((anim) => anim.id !== newId)
-                          );
-                        }, 1000);
+                        await attack(2);
                       }
                     } catch (error) {
                       console.error("Error attacking:", error);
@@ -290,8 +304,8 @@ const Home: NextPage = () => {
         /* --- Updated styles for the Attack button --- */
         .btn-attack {
           background-color: rgba(131, 110, 249, 1);
+          color: black;
           border: none;
-          color: white;
           padding: 1rem 2rem;
           border-radius: 0.5rem;
           font-size: 1.25rem;
