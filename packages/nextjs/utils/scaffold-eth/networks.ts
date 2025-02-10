@@ -1,5 +1,6 @@
 import * as chains from "viem/chains";
 import scaffoldConfig from "~~/scaffold.config";
+import { monadDevnet } from "./customChains";
 
 type ChainAttributes = {
   // color | [lightThemeColor, darkThemeColor]
@@ -34,6 +35,7 @@ export const RPC_CHAIN_NAMES: Record<number, string> = {
   [chains.baseSepolia.id]: "base-sepolia",
   [chains.celo.id]: "celo-mainnet",
   [chains.celoAlfajores.id]: "celo-alfajores",
+  [monadDevnet.id]: "monad-devnet",
 };
 
 export const getAlchemyHttpUrl = (chainId: number) => {
@@ -43,6 +45,9 @@ export const getAlchemyHttpUrl = (chainId: number) => {
 };
 
 export const NETWORKS_EXTRA_DATA: Record<string, ChainAttributes> = {
+  [monadDevnet.id]: {
+    color: "#200052",
+  },
   [chains.hardhat.id]: {
     color: "#b8af0c",
   },
