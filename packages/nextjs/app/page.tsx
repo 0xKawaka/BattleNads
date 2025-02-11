@@ -6,6 +6,7 @@ import { useAccount } from "wagmi";
 import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 import team1 from './assets/team1.png';
 import team2 from './assets/team2.png';
+import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 
 const Home: NextPage = () => {
   const { address: connectedAddress } = useAccount();
@@ -94,9 +95,8 @@ const Home: NextPage = () => {
 
   return (
     <div className="flex items-center justify-center h-[80vh]">
-      {connectedAddress && (
         <div className="">
-          {(!team || team === 0) ? (
+          {connectedAddress && (!team || team === 0) ? (
             <>
               <h2 className="text-3xl mb-6 text-center">Pick Your Team</h2>
               <div className="flex gap-3 sm:gap-12 justify-center">
@@ -144,7 +144,7 @@ const Home: NextPage = () => {
                     alt="Team 1"
                     className={`w-36 h-36 sm:w-64 sm:h-64 ${team === 1 && attackingAnimation ? "attack-animation-right" : ""} ${damagedTeam === 1 ? "damage-shake" : ""}`}
                   />
-                  {/* Health bar for Team 1 */}
+                  { maxHealth && team1Health && (
                   <div className="health-bar">
                     <div
                       className="health-bar-fill"
@@ -154,6 +154,7 @@ const Home: NextPage = () => {
                       {String(team1Health)}/{Number(maxHealth)}
                     </div>
                   </div>
+                  )}
                   {damageAnimations
                     .filter((anim) => anim.team === 1)
                     .map((anim) => (
@@ -166,7 +167,7 @@ const Home: NextPage = () => {
                     alt="Team 2"
                     className={`w-36 h-36 sm:w-64 sm:h-64 ${team === 2 && attackingAnimation ? "attack-animation-left" : ""} ${damagedTeam === 2 ? "damage-shake" : ""}`}
                   />
-                  {/* Health bar for Team 2 */}
+                  {maxHealth && team2Health && (
                   <div className="health-bar">
                     <div
                       className="health-bar-fill"
@@ -176,6 +177,7 @@ const Home: NextPage = () => {
                       {String(team2Health)}/{Number(maxHealth)}
                     </div>
                   </div>
+                  )}
                   {damageAnimations
                     .filter((anim) => anim.team === 2)
                     .map((anim) => (
@@ -183,8 +185,8 @@ const Home: NextPage = () => {
                     ))}
                 </div>
               </div>
-              <div className="flex justify-center">
-                <button
+              <div className="flex justify-center pt-6">
+              {connectedAddress ? (<button
                   className="btn btn-attack"
                   onClick={async () => {
                     try {
@@ -200,13 +202,13 @@ const Home: NextPage = () => {
                   }}
                 >
                   Attack
-                </button>
+                </button>)
+              : (<RainbowKitCustomConnectButton />)
+              }
               </div>
             </>
           )}
         </div>
-      )}
-
       {/* CSS animations for attack, damage indicators, damage shake and health bars */}
       <style jsx>{`
         /* Attack animations: move toward the enemy and then return */

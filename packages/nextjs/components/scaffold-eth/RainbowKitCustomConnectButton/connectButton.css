@@ -1,0 +1,12 @@
+.connect-wallet {
+  background-color: #836ef9;
+  border-color: #836ef9;
+  border-radius: 5px;
+  height: 42px;
+  font-size: 1rem;
+}
+.connect-wallet:hover {
+  background-color: #8b69ed;
+  border-color: #8b69ed;
+  box-shadow: 0 4px 10px rgba(131, 110, 249, 0.5);
+}
